@@ -1,5 +1,6 @@
 import { type FastMCP, type Tool, imageContent } from 'fastmcp';
 import { z } from 'zod';
+import { protectTool } from '../auth/toolAuthz.js';
 import { formatDiscogsError } from '../errors.js';
 import { FastMCPSessionAuth } from '../types/common.js';
 
@@ -24,5 +25,5 @@ export const fetchImageTool: Tool<FastMCPSessionAuth, typeof MediaParamsSchema> 
 };
 
 export function registerMediaTools(server: FastMCP): void {
-  server.addTool(fetchImageTool);
+  server.addTool(protectTool(fetchImageTool));
 }

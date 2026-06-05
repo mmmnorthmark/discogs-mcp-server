@@ -1,4 +1,5 @@
 import type { FastMCP, Tool } from 'fastmcp';
+import { protectTool } from '../auth/toolAuthz.js';
 import { formatDiscogsError } from '../errors.js';
 import { ListService } from '../services/list.js';
 import { UserService } from '../services/user/index.js';
@@ -45,6 +46,6 @@ export const getListTool: Tool<FastMCPSessionAuth, typeof ListIdParamSchema> = {
 };
 
 export function registerUserListsTools(server: FastMCP): void {
-  server.addTool(getUserListsTool);
-  server.addTool(getListTool);
+  server.addTool(protectTool(getUserListsTool));
+  server.addTool(protectTool(getListTool));
 }

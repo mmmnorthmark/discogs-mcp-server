@@ -130,7 +130,18 @@ export const UsernameInputSchema = z.object({
 export type CurrencyCode = z.infer<typeof CurrencyCodeSchema>;
 
 /**
- * Common type for FastMCP session authentication
+ * Common type for FastMCP session authentication.
+ *
+ * Kept as the broad `Record<string, unknown> | undefined` shape so it
+ * remains assignment-compatible with FastMCP's own `FastMCPSessionAuth`
+ * constraint (the library's tool/prompt generics require exactly this
+ * structural shape).
+ *
+ * When an identity gateway verifies a request, src/auth/sessionAuth.ts
+ * populates this session with an `identity` field. Tools can read it via
+ * `context.session?.identity`, but the preferred path is automatic
+ * role-tier enforcement at registration time via `protectTool` from
+ * src/auth/toolAuthz.ts — see src/tools/toolRoles.ts.
  */
 export type FastMCPSessionAuth = Record<string, unknown> | undefined;
 

@@ -1,4 +1,5 @@
 import { FastMCP, Tool } from 'fastmcp';
+import { protectTool } from '../auth/toolAuthz.js';
 import { formatDiscogsError } from '../errors.js';
 import { ArtistService } from '../services/artist.js';
 import { DatabaseService } from '../services/database.js';
@@ -251,16 +252,16 @@ export const searchTool: Tool<FastMCPSessionAuth, typeof SearchParamsSchema> = {
 };
 
 export function registerDatabaseTools(server: FastMCP): void {
-  server.addTool(getReleaseTool);
-  server.addTool(getReleaseRatingTool);
-  server.addTool(editReleaseRatingTool);
-  server.addTool(deleteReleaseRatingTool);
-  server.addTool(getReleaseCommunityRatingTool);
-  server.addTool(getMasterReleaseTool);
-  server.addTool(getMasterReleaseVersionsTool);
-  server.addTool(getArtistTool);
-  server.addTool(getArtistReleasesTool);
-  server.addTool(getLabelTool);
-  server.addTool(getLabelReleasesTool);
-  server.addTool(searchTool);
+  server.addTool(protectTool(getReleaseTool));
+  server.addTool(protectTool(getReleaseRatingTool));
+  server.addTool(protectTool(editReleaseRatingTool));
+  server.addTool(protectTool(deleteReleaseRatingTool));
+  server.addTool(protectTool(getReleaseCommunityRatingTool));
+  server.addTool(protectTool(getMasterReleaseTool));
+  server.addTool(protectTool(getMasterReleaseVersionsTool));
+  server.addTool(protectTool(getArtistTool));
+  server.addTool(protectTool(getArtistReleasesTool));
+  server.addTool(protectTool(getLabelTool));
+  server.addTool(protectTool(getLabelReleasesTool));
+  server.addTool(protectTool(searchTool));
 }

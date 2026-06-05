@@ -15,7 +15,11 @@ publicJwk.use = "sig";
 const jwksResponseBody = JSON.stringify({ keys: [publicJwk] });
 
 function stubFetchToServeJwks(expectedUrl: string): void {
-  globalThis.fetch = vi.fn(async (url: RequestInfo | URL) => {
+  // Use the runtime fetch input type. Discogs's tsconfig omits the DOM lib,
+  // so `RequestInfo` isn't a global type here — derive from `typeof fetch`
+  // instead so the same test source works under both lib configurations.
+  type FetchInput = Parameters<typeof fetch>[0];
+  globalThis.fetch = vi.fn(async (url: FetchInput) => {
     if (url.toString() === expectedUrl) {
       return new Response(jwksResponseBody, {
         status: 200,

@@ -1,4 +1,5 @@
 import type { FastMCP, Tool } from 'fastmcp';
+import { protectTool } from '../auth/toolAuthz.js';
 import { formatDiscogsError } from '../errors.js';
 import { UserService } from '../services/user/index.js';
 import { FastMCPSessionAuth } from '../types/common.js';
@@ -85,8 +86,8 @@ export const deleteItemInWantlistTool: Tool<
 };
 
 export function registerUserWantlistTools(server: FastMCP): void {
-  server.addTool(getUserWantlistTool);
-  server.addTool(addToWantlistTool);
-  server.addTool(editItemInWantlistTool);
-  server.addTool(deleteItemInWantlistTool);
+  server.addTool(protectTool(getUserWantlistTool));
+  server.addTool(protectTool(addToWantlistTool));
+  server.addTool(protectTool(editItemInWantlistTool));
+  server.addTool(protectTool(deleteItemInWantlistTool));
 }
