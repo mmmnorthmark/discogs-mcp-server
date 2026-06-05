@@ -22,6 +22,7 @@ If you just want to get started immediately using this MCP Server with the [Clau
 - [Running the Server](#running-the-server-locally)
   - [Option 1: Local Development](#option-1-local-development)
   - [Option 2: Docker](#option-2-docker)
+- [Deploying to Google Cloud Run](#deploying-to-google-cloud-run)
 - [Inspection](#inspection)
 - [MCP Clients](#mcp-clients)
   - [Claude Desktop Configuration](#claude-desktop-configuration)
@@ -106,6 +107,63 @@ The other environment variables in `.env.example` are optional and have sensible
    # By default, the server listens on 0.0.0.0, allowing connections from outside the container
    docker run --env-file .env -p 3001:3001 discogs-mcp-server:latest stream
    ```
+
+## Deploying to Google Cloud Run
+
+This repo ships two Cloud Build configs that auto-deploy the server to
+Google Cloud Run. They follow the same dev/prod split used by
+[`cellartracker-mcp-server`](https://github.com/mmmnorthmark/cellartracker-mcp)
+and are designed to sit behind a Cloudflare Worker that handles edge
+authentication via Cloudflare Access. See the broader
+[`mcp-on-gcp`](https://github.com/mmmnorthmark/mcp-on-gcp) reference for
+the topology (Worker → Cloud Run IAM → Cloud Run service → MCP server).
+
+| File | Trigger | Cloud Run service | Image tag |
+| --- | --- | --- | --- |
+| `cloudbuild.yaml` | push to `main` | `discogs-mcp-dev` | `:$COMMIT_SHA`, `:latest` |
+| `cloudbuild-prod.yaml` | tag matching `v*.*.*` | `discogs-mcp-server` | `:$TAG_NAME`, `:latest` |
+
+Both configs use `gcloud run services update --image=...` (not `deploy`),
+so env vars and secret refs already set on the service are preserved
+across deploys.
+
+### Cloud Run environment variables
+
+Required:
+
+- `DISCOGS_PERSONAL_ACCESS_TOKEN` — your Discogs token.
+
+Recommended when serving real traffic:
+
+- `MCP_SERVER_URL` — public URL of the service (e.g. `https://discogs-mcp.example.com`).
+- `SERVER_HOST=0.0.0.0` (already the default).
+- `PORT` — set automatically by Cloud Run; the server reads it.
+
+Identity-gateway passthrough (only if traffic flows through Cloudflare
+Access or another trusted gateway that injects a signed JWT header):
+
+- `CF_ACCESS_TEAM_DOMAIN` + `CF_ACCESS_AUD` — Cloudflare Access shortcut.
+  The verifier auto-derives the issuer/JWKS URL.
+
+Or use the provider-agnostic equivalents (Cognito, Auth0, Tailscale,
+etc.):
+
+- `IDENTITY_JWKS_URL`, `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`
+- `IDENTITY_HEADER` (default `cf-access-jwt-assertion`)
+- `IDENTITY_EMAIL_CLAIM` (default `email`)
+- `IDENTITY_GROUPS_CLAIM` (default `groups`)
+
+Role-based authorization (only when groups are configured in the gateway):
+
+- `IDENTITY_ROLE_ADMIN_GROUPS` — comma-separated group names mapping to `admin`.
+- `IDENTITY_ROLE_WRITER_GROUPS` — group names mapping to `writer`.
+- `IDENTITY_ROLE_READER_GROUPS` — group names mapping to `reader`.
+
+When none of the `IDENTITY_ROLE_*_GROUPS` vars are set, per-tool role
+enforcement is a no-op — the deployment behaves like a single-tenant
+server. The dispatch table in `src/tools/toolRoles.ts` classifies every
+tool as `reader` (read-only lookups) or `writer` (mutations); unknown
+tools default to `writer`.
 
 ## Inspection
 
