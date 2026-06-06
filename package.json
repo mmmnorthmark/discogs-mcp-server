@@ -49,6 +49,7 @@
     "@modelcontextprotocol/sdk": "^1.12.0",
     "dotenv": "github:cswkim/dotenv",
     "fastmcp": "^3.0.0",
+    "jose": "^6.1.0",
     "zod": "^4.0.5"
   },
   "devDependencies": {

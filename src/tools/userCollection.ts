@@ -1,4 +1,5 @@
 import type { FastMCP, Tool } from 'fastmcp';
+import { protectTool } from '../auth/toolAuthz.js';
 import { formatDiscogsError } from '../errors.js';
 import { UserService } from '../services/user/index.js';
 import { FastMCPSessionAuth, UsernameInputSchema } from '../types/common.js';
@@ -318,18 +319,18 @@ export const rateReleaseInUserCollectionTool: Tool<
 };
 
 export function registerUserCollectionTools(server: FastMCP): void {
-  server.addTool(getUserCollectionFoldersTool);
-  server.addTool(createUserCollectionFolderTool);
-  server.addTool(getUserCollectionFolderTool);
-  server.addTool(editUserCollectionFolderTool);
-  server.addTool(deleteUserCollectionFolderTool);
-  server.addTool(findReleaseInUserCollectionTool);
-  server.addTool(getUserCollectionItemsTool);
-  server.addTool(addReleaseToUserCollectionFolderTool);
-  server.addTool(rateReleaseInUserCollectionTool);
-  server.addTool(moveReleaseInUserCollectionTool);
-  server.addTool(deleteReleaseFromUserCollectionFolderTool);
-  server.addTool(getUserCollectionCustomFieldsTool);
-  server.addTool(editUserCollectionCustomFieldValueTool);
-  server.addTool(getUserCollectionValueTool);
+  server.addTool(protectTool(getUserCollectionFoldersTool));
+  server.addTool(protectTool(createUserCollectionFolderTool));
+  server.addTool(protectTool(getUserCollectionFolderTool));
+  server.addTool(protectTool(editUserCollectionFolderTool));
+  server.addTool(protectTool(deleteUserCollectionFolderTool));
+  server.addTool(protectTool(findReleaseInUserCollectionTool));
+  server.addTool(protectTool(getUserCollectionItemsTool));
+  server.addTool(protectTool(addReleaseToUserCollectionFolderTool));
+  server.addTool(protectTool(rateReleaseInUserCollectionTool));
+  server.addTool(protectTool(moveReleaseInUserCollectionTool));
+  server.addTool(protectTool(deleteReleaseFromUserCollectionFolderTool));
+  server.addTool(protectTool(getUserCollectionCustomFieldsTool));
+  server.addTool(protectTool(editUserCollectionCustomFieldValueTool));
+  server.addTool(protectTool(getUserCollectionValueTool));
 }

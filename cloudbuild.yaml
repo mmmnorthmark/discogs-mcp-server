@@ -1,0 +1,49 @@
+# Build → push → update discogs-mcp-dev on every push to main.
+#
+# Read by the 'discogs-mcp-dev-on-main' Cloud Build trigger.
+# The trigger runs as a deploy service account configured in GCP.
+#
+# `services update` (not `deploy`) preserves env vars, secret refs,
+# scaling, and domain mapping that the dev service already has.
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --platform=linux/amd64
+      - -t
+      - gcr.io/$PROJECT_ID/discogs-mcp-dev:$COMMIT_SHA
+      - -t
+      - gcr.io/$PROJECT_ID/discogs-mcp-dev:latest
+      - .
+
+  - id: push-sha
+    name: gcr.io/cloud-builders/docker
+    args: [push, gcr.io/$PROJECT_ID/discogs-mcp-dev:$COMMIT_SHA]
+
+  - id: push-latest
+    name: gcr.io/cloud-builders/docker
+    args: [push, gcr.io/$PROJECT_ID/discogs-mcp-dev:latest]
+
+  - id: deploy-dev
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - services
+      - update
+      - discogs-mcp-dev
+      - --image=gcr.io/$PROJECT_ID/discogs-mcp-dev:$COMMIT_SHA
+      - --region=us-central1
+
+# Required when running with a user-managed service account that has no
+# attached storage bucket — without it Cloud Build refuses to start.
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - gcr.io/$PROJECT_ID/discogs-mcp-dev:$COMMIT_SHA
+  - gcr.io/$PROJECT_ID/discogs-mcp-dev:latest
+
+timeout: 1200s

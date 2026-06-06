@@ -1,5 +1,6 @@
 import type { FastMCP, Tool, ToolParameters } from 'fastmcp';
 import { z } from 'zod';
+import { protectTool } from '../auth/toolAuthz.js';
 import { formatDiscogsError } from '../errors.js';
 import { OAuthService } from '../services/oauth.js';
 import { UserContributionsService, UserSubmissionsService } from '../services/user/contribution.js';
@@ -105,9 +106,9 @@ export const editUserProfileTool: Tool<FastMCPSessionAuth, typeof UserProfileEdi
 };
 
 export function registerUserIdentityTools(server: FastMCP): void {
-  server.addTool(getUserIdentityTool);
-  server.addTool(getUserProfileTool);
-  server.addTool(editUserProfileTool);
-  server.addTool(getUserSubmissionsTool);
-  server.addTool(getUserContributionsTool);
+  server.addTool(protectTool(getUserIdentityTool));
+  server.addTool(protectTool(getUserProfileTool));
+  server.addTool(protectTool(editUserProfileTool));
+  server.addTool(protectTool(getUserSubmissionsTool));
+  server.addTool(protectTool(getUserContributionsTool));
 }

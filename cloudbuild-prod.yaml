@@ -1,0 +1,53 @@
+# Build → push → update discogs-mcp-server (PROD) on every git tag v*.
+#
+# Read by the 'discogs-mcp-prod-on-tag' Cloud Build trigger.
+# Trigger fires on tags matching ^v.*$ pushed to GitHub
+# (e.g., `git tag v0.6.0 && git push origin v0.6.0`).
+#
+# Image is tagged with the git tag itself ($TAG_NAME) so prod's running
+# image name is human-readable: discogs-mcp-server:v0.6.0.
+#
+# `services update` (not `deploy`) preserves env vars, secret refs, and
+# scaling config that the prod service already has — we only swap the
+# image. Whatever ALLOWED_GOOGLE_EMAILS list and Firestore wiring is on
+# the service stays put.
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --platform=linux/amd64
+      - -t
+      - gcr.io/$PROJECT_ID/discogs-mcp-server:$TAG_NAME
+      - -t
+      - gcr.io/$PROJECT_ID/discogs-mcp-server:latest
+      - .
+
+  - id: push-tag
+    name: gcr.io/cloud-builders/docker
+    args: [push, gcr.io/$PROJECT_ID/discogs-mcp-server:$TAG_NAME]
+
+  - id: push-latest
+    name: gcr.io/cloud-builders/docker
+    args: [push, gcr.io/$PROJECT_ID/discogs-mcp-server:latest]
+
+  - id: deploy-prod
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - services
+      - update
+      - discogs-mcp-server
+      - --image=gcr.io/$PROJECT_ID/discogs-mcp-server:$TAG_NAME
+      - --region=us-central1
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - gcr.io/$PROJECT_ID/discogs-mcp-server:$TAG_NAME
+  - gcr.io/$PROJECT_ID/discogs-mcp-server:latest
+
+timeout: 1200s
