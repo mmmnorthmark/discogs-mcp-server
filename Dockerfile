@@ -29,8 +29,7 @@ COPY package.json pnpm-lock.yaml ./
 COPY tsconfig.json ./
 COPY tsup.config.ts ./
 
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 COPY src ./src
 
@@ -57,8 +56,7 @@ COPY --from=builder /app/pnpm-lock.yaml /app/pnpm-lock.yaml
 
 ENV NODE_ENV=production
 
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod --ignore-scripts
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Run as the unprivileged `node` user shipped in the base image.
 USER node
