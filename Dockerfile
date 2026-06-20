@@ -18,7 +18,7 @@ WORKDIR /app
 # corepack ships with Node 22 and resolves a pnpm version from
 # package.json's `packageManager` field (or falls back to its bundled
 # default). Enable here so `pnpm` is on PATH for both install + build.
-RUN corepack enable
+RUN npm install -g corepack@latest && corepack enable
 
 # Install git for the dotenv GitHub dependency declared in package.json.
 RUN apk add --no-cache git
@@ -42,7 +42,7 @@ FROM node:22.12-alpine AS release
 
 WORKDIR /app
 
-RUN corepack enable
+RUN npm install -g corepack@latest && corepack enable
 
 # tini gives us a real PID 1 — clean signal handling on SIGTERM (which
 # Cloud Run sends on scale-down or revision change). git is still needed
