@@ -50,32 +50,104 @@ async function registerPublicClient(app: Hono) {
 // Discovery document
 // ---------------------------------------------------------------------------
 
-describe('buildOAuthDiscoveryConfig', () => {
-  it('mirrors cellartracker-mcp’s discovery doc with Discogs’ own issuer', async () => {
-    const { buildOAuthDiscoveryConfig } = await import('./oauthRoutes.js');
-    const config = buildOAuthDiscoveryConfig();
+/**
+ * Assert a URL has no accidental empty path segment, i.e. no `//` anywhere
+ * after the scheme separator.
+ */
+function expectNoDoubleSlash(url: string): void {
+  expect(url.replace(/^https?:\/\//, '')).not.toContain('//');
+}
 
-    expect(config.enabled).toBe(true);
-    expect(config.authorizationServer).toMatchObject({
+describe('discovery documents over HTTP', () => {
+  it('serves the authorization-server doc, mirroring cellartracker-mcp', async () => {
+    const app = await buildApp();
+    const res = await app.request('/.well-known/oauth-authorization-server');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
       issuer: 'https://discogs.example.com/',
-      authorizationEndpoint: 'https://discogs.example.com/authorize',
-      tokenEndpoint: 'https://discogs.example.com/token',
-      revocationEndpoint: 'https://discogs.example.com/revoke',
-      registrationEndpoint: 'https://discogs.example.com/register',
-      responseTypesSupported: ['code'],
-      codeChallengeMethodsSupported: ['S256'],
-      grantTypesSupported: ['authorization_code', 'refresh_token'],
-      scopesSupported: ['openid', 'email', 'profile'],
-      tokenEndpointAuthMethodsSupported: ['client_secret_post', 'none'],
+      authorization_endpoint: 'https://discogs.example.com/authorize',
+      token_endpoint: 'https://discogs.example.com/token',
+      revocation_endpoint: 'https://discogs.example.com/revoke',
+      registration_endpoint: 'https://discogs.example.com/register',
+      response_types_supported: ['code'],
+      code_challenge_methods_supported: ['S256'],
+      grant_types_supported: ['authorization_code', 'refresh_token'],
+      scopes_supported: ['openid', 'email', 'profile'],
+      token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
+      service_documentation: 'https://github.com/cswkim/discogs-mcp-server',
     });
   });
 
-  it('advertises itself as its own authorization server', async () => {
-    const { buildOAuthDiscoveryConfig } = await import('./oauthRoutes.js');
-    const { protectedResource } = buildOAuthDiscoveryConfig();
+  it('serves the protected-resource doc at both the bare and /mcp paths', async () => {
+    const app = await buildApp();
+    const expected = {
+      resource: 'https://discogs.example.com/',
+      authorization_servers: ['https://discogs.example.com/'],
+      scopes_supported: ['openid', 'email', 'profile'],
+      resource_documentation: 'https://github.com/cswkim/discogs-mcp-server',
+    };
 
-    expect(protectedResource.resource).toBe('https://discogs.example.com/');
-    expect(protectedResource.authorizationServers).toEqual(['https://discogs.example.com/']);
+    const bare = await app.request('/.well-known/oauth-protected-resource');
+    expect(bare.status).toBe(200);
+    expect(await bare.json()).toEqual(expected);
+
+    const suffixed = await app.request('/.well-known/oauth-protected-resource/mcp');
+    expect(suffixed.status).toBe(200);
+    expect(await suffixed.json()).toEqual(expected);
+  });
+
+  it('keeps the trailing slash on issuer and resource', async () => {
+    const { buildAuthorizationServerMetadata, buildProtectedResourceMetadata } =
+      await import('./oauthRoutes.js');
+
+    // Matches cellartracker-mcp's live doc; the challenge URL must not be
+    // built by concatenating onto these.
+    expect(buildAuthorizationServerMetadata().issuer).toBe('https://discogs.example.com/');
+    expect(buildProtectedResourceMetadata().resource).toBe('https://discogs.example.com/');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// WWW-Authenticate challenge URL
+//
+// Regression: MCP_SERVER_URL normalizes to a trailing slash, and mcp-proxy
+// builds the challenge by concatenating `${resource}/.well-known/...`, which
+// previously emitted `https://host//.well-known/oauth-protected-resource`.
+// ---------------------------------------------------------------------------
+
+describe('challenge resource base', () => {
+  it('has no trailing slash, so concatenation yields exactly one', async () => {
+    const { getChallengeResourceBase } = await import('./googleOAuthProvider.js');
+
+    expect(getChallengeResourceBase()).toBe('https://discogs.example.com');
+
+    // Mirrors mcp-proxy's exact construction (authentication.ts):
+    //   `resource_metadata="${resource}/.well-known/oauth-protected-resource"`
+    const challengeUrl = `${getChallengeResourceBase()}/.well-known/oauth-protected-resource`;
+    expect(challengeUrl).toBe('https://discogs.example.com/.well-known/oauth-protected-resource');
+    expectNoDoubleSlash(challengeUrl);
+  });
+
+  it('stays concat-safe when MCP_SERVER_URL is given without a trailing slash', async () => {
+    vi.stubEnv('MCP_SERVER_URL', 'https://discogs.example.com');
+    const { getChallengeResourceBase } = await import('./googleOAuthProvider.js');
+
+    expectNoDoubleSlash(`${getChallengeResourceBase()}/.well-known/oauth-protected-resource`);
+  });
+
+  it('feeds the FastMCP oauth config, which is what mcp-proxy concatenates', async () => {
+    const { buildFastmcpOAuthConfig } = await import('./oauthRoutes.js');
+    const config = buildFastmcpOAuthConfig();
+
+    expect(config.enabled).toBe(true);
+    expect(config.protectedResource.resource).toBe('https://discogs.example.com');
+    expectNoDoubleSlash(
+      `${config.protectedResource.resource}/.well-known/oauth-protected-resource`,
+    );
+
+    // The published doc still names the trailing-slash issuer as its AS.
+    expect(config.protectedResource.authorizationServers).toEqual(['https://discogs.example.com/']);
   });
 });
 

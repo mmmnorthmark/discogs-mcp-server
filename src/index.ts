@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { FastMCP } from 'fastmcp';
 import { isOAuthConfigured } from './auth/googleOAuthProvider.js';
-import { buildOAuthDiscoveryConfig, registerOAuthRoutes } from './auth/oauthRoutes.js';
+import { buildFastmcpOAuthConfig, registerOAuthRoutes } from './auth/oauthRoutes.js';
 import { identityAuthenticate } from './auth/sessionAuth.js';
 import { config, validateConfig } from './config.js';
 import { registerTools } from './tools/index.js';
@@ -42,11 +42,9 @@ try {
     name: config.server.name,
     version: VERSION,
     authenticate: identityAuthenticate,
-    // Serves /.well-known/oauth-authorization-server,
-    // /.well-known/oauth-protected-resource and
-    // /.well-known/oauth-protected-resource/mcp, and adds the
-    // resource_metadata hint to 401s from /mcp.
-    ...(oauthEnabled ? { oauth: buildOAuthDiscoveryConfig() } : {}),
+    // Adds the resource_metadata hint to 401s from /mcp. The discovery
+    // documents themselves are served by registerOAuthRoutes() below.
+    ...(oauthEnabled ? { oauth: buildFastmcpOAuthConfig() } : {}),
   });
 
   registerTools(server);

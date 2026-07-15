@@ -30,7 +30,7 @@ import type http from 'node:http';
 import { log } from '../utils.js';
 import {
   OAuthFlowError,
-  getServerUrl,
+  getChallengeResourceBase,
   isOAuthConfigured,
   verifyGoogleAccessToken,
 } from './googleOAuthProvider.js';
@@ -48,12 +48,12 @@ export interface IdentitySession {
  *
  * FastMCP/mcp-proxy writes a thrown Response straight to the wire, headers
  * and all — this is the documented way to fail authentication.
+ *
+ * Built from the same base mcp-proxy uses for its own challenges, so the two
+ * emitters cannot drift apart.
  */
 function unauthorized(error: string, description: string, status: number): Response {
-  const resourceMetadata = new URL(
-    '/.well-known/oauth-protected-resource',
-    getServerUrl(),
-  ).toString();
+  const resourceMetadata = `${getChallengeResourceBase()}/.well-known/oauth-protected-resource`;
   return new Response(JSON.stringify({ error, error_description: description }), {
     status,
     headers: {

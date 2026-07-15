@@ -11,15 +11,16 @@
  *   POST /token       Token endpoint (authorization_code + refresh_token)
  *   POST /revoke      Revocation endpoint (RFC 7009)
  *
+ * It also serves the three discovery documents:
+ *
+ *   GET /.well-known/oauth-authorization-server
+ *   GET /.well-known/oauth-protected-resource
+ *   GET /.well-known/oauth-protected-resource/mcp
+ *
  * Routes registered on the Hono app are only reached for requests FastMCP
  * did not handle itself (i.e. not /mcp), and FastMCP's `authenticate` hook
  * does NOT run for them — which is what we need, since the whole point of
  * these endpoints is to be reachable by an unauthenticated client.
- *
- * The three discovery documents (.well-known/oauth-authorization-server,
- * .well-known/oauth-protected-resource and .well-known/oauth-protected-
- * resource/mcp) are served by FastMCP's built-in `oauth` option — see
- * buildOAuthDiscoveryConfig() below and src/index.ts.
  */
 
 import type { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
@@ -30,6 +31,7 @@ import {
   SUPPORTED_SCOPES,
   exchangeAuthorizationCode,
   exchangeRefreshToken,
+  getChallengeResourceBase,
   getClient,
   getServerUrl,
   handleGoogleCallback,
@@ -114,9 +116,72 @@ async function authenticateClient(
 }
 
 /**
+ * RFC 8414 authorization-server metadata. Mirrors cellartracker-mcp's live
+ * discovery document field-for-field, with Discogs' own issuer.
+ *
+ * `issuer` keeps its trailing slash deliberately — it is the server's
+ * identifier and must match cellartracker's shape.
+ */
+export function buildAuthorizationServerMetadata(): Record<string, unknown> {
+  const serverUrl = getServerUrl();
+  const abs = (path: string): string => new URL(path, serverUrl).toString();
+
+  return {
+    issuer: serverUrl.toString(),
+    authorization_endpoint: abs('/authorize'),
+    token_endpoint: abs('/token'),
+    revocation_endpoint: abs('/revoke'),
+    registration_endpoint: abs('/register'),
+    response_types_supported: ['code'],
+    code_challenge_methods_supported: ['S256'],
+    grant_types_supported: ['authorization_code', 'refresh_token'],
+    scopes_supported: SUPPORTED_SCOPES,
+    token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
+    service_documentation: SERVICE_DOCUMENTATION,
+  };
+}
+
+/**
+ * RFC 9728 protected-resource metadata.
+ *
+ * `resource` keeps its trailing slash to match cellartracker-mcp. Note that
+ * this value is NOT what builds the WWW-Authenticate challenge URL — see
+ * buildFastmcpOAuthConfig().
+ */
+export function buildProtectedResourceMetadata(): Record<string, unknown> {
+  const serverUrl = getServerUrl();
+
+  return {
+    resource: serverUrl.toString(),
+    authorization_servers: [serverUrl.toString()],
+    scopes_supported: SUPPORTED_SCOPES,
+    resource_documentation: SERVICE_DOCUMENTATION,
+  };
+}
+
+/**
  * Register the OAuth authorization-server endpoints on FastMCP's Hono app.
  */
 export function registerOAuthRoutes(app: Hono): void {
+  // -------------------------------------------------------------------------
+  // Discovery documents
+  //
+  // Served here rather than from FastMCP's built-in `oauth` option so the
+  // published `resource` / `issuer` keep their trailing slash independently
+  // of the concat-safe value the challenge header needs. These routes shadow
+  // FastMCP's built-in handler, which only runs if the Hono app 404s.
+  // -------------------------------------------------------------------------
+  app.get('/.well-known/oauth-authorization-server', (c) =>
+    c.json(buildAuthorizationServerMetadata()),
+  );
+
+  // Both the bare path and the /mcp-suffixed variant (RFC 9728 §3.1) — MCP
+  // clients probe the one matching the resource they were denied access to.
+  app.get('/.well-known/oauth-protected-resource', (c) => c.json(buildProtectedResourceMetadata()));
+  app.get('/.well-known/oauth-protected-resource/mcp', (c) =>
+    c.json(buildProtectedResourceMetadata()),
+  );
+
   // -------------------------------------------------------------------------
   // POST /register — dynamic client registration (RFC 7591)
   // -------------------------------------------------------------------------
@@ -301,49 +366,30 @@ export function registerOAuthRoutes(app: Hono): void {
     }
   });
 
-  info('[OAuth] Mounted OAuth routes: /register, /authorize, /callback, /token, /revoke');
+  info(
+    '[OAuth] Mounted OAuth routes: /register, /authorize, /callback, /token, /revoke, /.well-known/*',
+  );
 }
 
 /**
- * Build the FastMCP `oauth` option. FastMCP serves the three discovery
- * documents from this config:
- *   /.well-known/oauth-authorization-server
- *   /.well-known/oauth-protected-resource
- *   /.well-known/oauth-protected-resource/mcp   (streamEndpoint suffix)
+ * Build the FastMCP `oauth` option.
  *
- * Its camelCase keys are converted to snake_case on output, and it does
- * express `registrationEndpoint`, so dynamic client registration is
- * discoverable. Configuring `protectedResource.resource` additionally makes
- * FastMCP emit a `WWW-Authenticate: Bearer ..., resource_metadata="..."`
- * header on 401s from /mcp, which is how MCP clients find their way here.
+ * Its ONLY job is to feed mcp-proxy the base for the WWW-Authenticate
+ * challenge on 401s from /mcp — that header is how MCP clients discover this
+ * authorization server. The discovery documents themselves are served by the
+ * Hono routes in registerOAuthRoutes(), which shadow FastMCP's built-in
+ * handler.
  *
- * The published document mirrors cellartracker-mcp's live discovery doc,
- * with Discogs' own issuer.
+ * `authorizationServer` is intentionally omitted: without it FastMCP will not
+ * serve an authorization-server document at all, leaving exactly one
+ * definition of each published document (in this module).
  */
-export function buildOAuthDiscoveryConfig() {
-  const serverUrl = getServerUrl();
-  const abs = (path: string): string => new URL(path, serverUrl).toString();
-
+export function buildFastmcpOAuthConfig() {
   return {
     enabled: true,
-    authorizationServer: {
-      issuer: serverUrl.toString(),
-      authorizationEndpoint: abs('/authorize'),
-      tokenEndpoint: abs('/token'),
-      revocationEndpoint: abs('/revoke'),
-      registrationEndpoint: abs('/register'),
-      responseTypesSupported: ['code'],
-      codeChallengeMethodsSupported: ['S256'],
-      grantTypesSupported: ['authorization_code', 'refresh_token'],
-      scopesSupported: SUPPORTED_SCOPES,
-      tokenEndpointAuthMethodsSupported: ['client_secret_post', 'none'],
-      serviceDocumentation: SERVICE_DOCUMENTATION,
-    },
     protectedResource: {
-      resource: serverUrl.toString(),
-      authorizationServers: [serverUrl.toString()],
-      scopesSupported: SUPPORTED_SCOPES,
-      resourceDocumentation: SERVICE_DOCUMENTATION,
+      resource: getChallengeResourceBase(),
+      authorizationServers: [getServerUrl().toString()],
     },
   };
 }

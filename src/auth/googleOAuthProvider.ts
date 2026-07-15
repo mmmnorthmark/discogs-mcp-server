@@ -99,6 +99,26 @@ export function getServerUrl(): URL {
   return new URL(process.env.MCP_SERVER_URL || DEFAULT_SERVER_URL);
 }
 
+/**
+ * The base that WWW-Authenticate challenge URLs are built from.
+ *
+ * mcp-proxy (which owns the 401s from /mcp) builds its challenge by string
+ * concatenation:
+ *
+ *   `resource_metadata="${resource}/.well-known/oauth-protected-resource"`
+ *
+ * so this MUST NOT carry a trailing slash, or the emitted URL contains `//`
+ * before `.well-known`. Hence the origin rather than getServerUrl(), which
+ * normalizes a trailing slash on.
+ *
+ * Deliberately NOT the value published as `resource` in the protected-
+ * resource document — that one keeps its trailing slash to match
+ * cellartracker-mcp. See buildProtectedResourceMetadata() in oauthRoutes.ts.
+ */
+export function getChallengeResourceBase(): string {
+  return getServerUrl().origin;
+}
+
 function getGoogleRedirectUri(): string {
   return new URL('/callback', getServerUrl()).toString();
 }

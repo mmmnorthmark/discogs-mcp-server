@@ -99,6 +99,26 @@ describe('identityAuthenticate — Google bearer token path', () => {
     expect(await res.json()).toMatchObject({ error: 'invalid_token' });
   });
 
+  it('emits a challenge URL with no double slash, despite the trailing-slash issuer', async () => {
+    // Regression: MCP_SERVER_URL normalizes to "https://host/", which
+    // previously produced "https://host//.well-known/...".
+    vi.stubEnv('MCP_SERVER_URL', 'https://discogs.example.com/');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(tokeninfoResponse({}, 400)));
+
+    const { identityAuthenticate } = await loadSessionAuth();
+    const thrown = (await identityAuthenticate(
+      requestWith({ authorization: 'Bearer bad-token' }),
+    ).catch((err: unknown) => err)) as Response;
+
+    const challenge = thrown.headers.get('WWW-Authenticate')!;
+    const resourceMetadata = /resource_metadata="([^"]+)"/.exec(challenge)![1];
+
+    expect(resourceMetadata).toBe(
+      'https://discogs.example.com/.well-known/oauth-protected-resource',
+    );
+    expect(resourceMetadata.replace(/^https?:\/\//, '')).not.toContain('//');
+  });
+
   it('throws a 403 when the token is valid but the email is not allowlisted', async () => {
     vi.stubEnv('ALLOWED_GOOGLE_EMAILS', 'matthew@example.com');
     vi.stubGlobal(
