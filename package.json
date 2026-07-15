@@ -46,10 +46,13 @@
     "changeset:tag": "changeset tag"
   },
   "dependencies": {
+    "@keyv/sqlite": "^4.0.8",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "dotenv": "github:cswkim/dotenv",
     "fastmcp": "^3.0.0",
     "jose": "^6.1.0",
+    "keyv": "^5.6.0",
+    "keyv-firestore": "^2.1.0",
     "zod": "^4.0.5"
   },
   "devDependencies": {
