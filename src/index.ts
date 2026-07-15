@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { FastMCP } from 'fastmcp';
+import { isOAuthConfigured } from './auth/googleOAuthProvider.js';
+import { buildOAuthDiscoveryConfig, registerOAuthRoutes } from './auth/oauthRoutes.js';
 import { identityAuthenticate } from './auth/sessionAuth.js';
 import { config, validateConfig } from './config.js';
 import { registerTools } from './tools/index.js';
@@ -25,16 +27,26 @@ try {
     );
   }
 
-  // Identity-gateway passthrough. When traffic flows through a trusted
-  // identity gateway (Cloudflare Access, Cognito, Auth0, etc.) the gateway
-  // injects a signed JWT in a configured header — verify it and attach the
-  // resulting Identity to the FastMCP session so per-tool role enforcement
-  // can read it via context.session.identity. No-op for stdio transport and
-  // for deployments that haven't configured an identity provider.
+  // OAuth is enabled only when GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and
+  // MCP_SERVER_URL are all set. When it is, this process is both the MCP
+  // server and its own OAuth authorization server (a broker in front of
+  // Google) — see src/auth/googleOAuthProvider.ts.
+  const oauthEnabled = isOAuthConfigured();
+
+  // authenticate() accepts either a trusted identity-gateway JWT (Cloudflare
+  // Access, Cognito, Auth0, ...) or a Google Bearer access token validated
+  // against Google's tokeninfo endpoint plus the ALLOWED_GOOGLE_EMAILS
+  // allowlist. Either way it attaches an Identity to the FastMCP session so
+  // per-tool role enforcement can read it via context.session.identity.
   const server = new FastMCP({
     name: config.server.name,
     version: VERSION,
     authenticate: identityAuthenticate,
+    // Serves /.well-known/oauth-authorization-server,
+    // /.well-known/oauth-protected-resource and
+    // /.well-known/oauth-protected-resource/mcp, and adds the
+    // resource_metadata hint to 401s from /mcp.
+    ...(oauthEnabled ? { oauth: buildOAuthDiscoveryConfig() } : {}),
   });
 
   registerTools(server);
@@ -42,6 +54,16 @@ try {
   if (transportType === 'stdio') {
     server.start({ transportType });
   } else if (transportType === 'stream') {
+    // The OAuth endpoints live on FastMCP's own Hono app so /authorize,
+    // /token, /register, /revoke and /callback are served from the same
+    // process and port as /mcp. Only meaningful over HTTP.
+    if (oauthEnabled) {
+      registerOAuthRoutes(server.getApp());
+    } else {
+      log.info('OAuth disabled - server running without an authorization server');
+      log.info('  To enable, set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and MCP_SERVER_URL');
+    }
+
     server.start({
       transportType: 'httpStream',
       httpStream: {
