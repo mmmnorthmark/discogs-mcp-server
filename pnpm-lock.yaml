@@ -28,7 +28,7 @@ importers:
         specifier: ^3.0.0
         version: 3.33.0(jose@6.1.3)
       hono:
-        specifier: ^4.12.0
+        specifier: '>=4.11.10'
         version: 4.12.0
       jose:
         specifier: ^6.1.0
@@ -668,6 +668,7 @@ packages:
   '@svitejs/changesets-changelog-github-compact@1.2.0':
     resolution: {integrity: sha512-08eKiDAjj4zLug1taXSIJ0kGL5cawjVCyJkBb6EWSg5fEPX6L+Wtr0CH2If4j5KYylz85iaZiFlUItvgJvll5g==}
     engines: {node: ^14.13.1 || ^16.0.0 || >=18}
+    deprecated: unmaintained
 
   '@tokenizer/inflate@0.4.1':
     resolution: {integrity: sha512-2mAv+8pkG6GIZiF1kNg1jAjh27IDxEPKwdGul3snfztFerfPGI1LjDezZp3i7BElXompqEtPmoPx6c2wgtWsOA==}
