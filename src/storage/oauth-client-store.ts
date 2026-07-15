@@ -1,7 +1,7 @@
 /**
  * OAuth Client Store - Keyv-based persistent storage for dynamically registered OAuth clients
  *
- * Shares the same backend configuration as the session store:
+ * Shares the same backend configuration as the OAuth code store:
  * - memory: In-memory storage (default, for local development)
  * - sqlite: SQLite file-based storage (local persistence)
  * - firestore: Google Cloud Firestore (for GCP deployments)
