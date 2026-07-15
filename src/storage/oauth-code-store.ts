@@ -18,7 +18,6 @@
  * - OAUTH_CODES_COLLECTION: Firestore collection name (default: "oauth-codes")
  */
 
-import KeyvSqlite from '@keyv/sqlite';
 import Keyv from 'keyv';
 import { log } from '../utils.js';
 
@@ -61,6 +60,9 @@ async function initializeStore(): Promise<Keyv<AuthorizationCodeData>> {
   switch (backend) {
     case 'sqlite': {
       const sqlitePath = process.env.STORAGE_SQLITE_PATH || './data/sessions.sqlite';
+      // Dynamic import: @keyv/sqlite pulls in sqlite3's native binding, which
+      // memory/firestore deployments must not need at startup.
+      const KeyvSqlite = (await import('@keyv/sqlite')).default;
       const keyvSqlite = new KeyvSqlite(`sqlite://${sqlitePath}`);
       return new Keyv<AuthorizationCodeData>({
         store: keyvSqlite,
@@ -74,7 +76,9 @@ async function initializeStore(): Promise<Keyv<AuthorizationCodeData>> {
       const collection = process.env.OAUTH_CODES_COLLECTION || 'oauth-codes';
 
       if (!projectId) {
-        error('FIRESTORE_PROJECT_ID is required when using firestore backend. Falling back to memory.');
+        error(
+          'FIRESTORE_PROJECT_ID is required when using firestore backend. Falling back to memory.',
+        );
         return new Keyv<AuthorizationCodeData>({ namespace: NAMESPACE, ttl: TTL_MS });
       }
 

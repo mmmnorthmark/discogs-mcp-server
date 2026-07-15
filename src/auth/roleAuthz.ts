@@ -25,10 +25,10 @@
  * middleware maps that to HTTP 403 with a clear reason in the message.
  */
 
-import { InsufficientScopeError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
-import type { Identity } from "./identityJwtVerifier.js";
+import { InsufficientScopeError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import type { Identity } from './identityJwtVerifier.js';
 
-export type Role = "admin" | "writer" | "reader";
+export type Role = 'admin' | 'writer' | 'reader';
 
 // Higher number = more privileged. admin (3) ≥ writer (2) ≥ reader (1).
 const ROLE_TIER: Record<Role, number> = {
@@ -40,7 +40,7 @@ const ROLE_TIER: Record<Role, number> = {
 function parseGroupList(raw: string | undefined): string[] {
   if (!raw) return [];
   return raw
-    .split(",")
+    .split(',')
     .map((g) => g.trim())
     .filter((g) => g.length > 0);
 }
@@ -60,11 +60,7 @@ function loadConfig(): RoleConfig {
 }
 
 function isRbacConfigured(config: RoleConfig): boolean {
-  return (
-    config.admin.length > 0 ||
-    config.writer.length > 0 ||
-    config.reader.length > 0
-  );
+  return config.admin.length > 0 || config.writer.length > 0 || config.reader.length > 0;
 }
 
 /**
@@ -77,12 +73,11 @@ function isRbacConfigured(config: RoleConfig): boolean {
  */
 export function getRoleFromGroups(groups: string[]): Role | null {
   const config = loadConfig();
-  const inSet = (set: string[]): boolean =>
-    set.some((g) => groups.includes(g));
+  const inSet = (set: string[]): boolean => set.some((g) => groups.includes(g));
 
-  if (inSet(config.admin)) return "admin";
-  if (inSet(config.writer)) return "writer";
-  if (inSet(config.reader)) return "reader";
+  if (inSet(config.admin)) return 'admin';
+  if (inSet(config.writer)) return 'writer';
+  if (inSet(config.reader)) return 'reader';
   return null;
 }
 
@@ -99,11 +94,7 @@ export function getRoleFromGroups(groups: string[]): Role | null {
  * The InsufficientScopeError message includes the required role and the
  * user's current role for actionable debugging.
  */
-export function requireRole(
-  required: Role,
-  identity: Identity | null,
-  toolName?: string
-): void {
+export function requireRole(required: Role, identity: Identity | null, toolName?: string): void {
   const config = loadConfig();
   if (!isRbacConfigured(config)) return;
 
@@ -111,14 +102,14 @@ export function requireRole(
 
   if (!identity) {
     throw new InsufficientScopeError(
-      `${where} requires role '${required}'; no identity on this request`
+      `${where} requires role '${required}'; no identity on this request`,
     );
   }
 
   const actual = getRoleFromGroups(identity.groups);
   if (!actual || ROLE_TIER[actual] < ROLE_TIER[required]) {
     throw new InsufficientScopeError(
-      `${where} requires role '${required}'; you are '${actual ?? "none"}'`
+      `${where} requires role '${required}'; you are '${actual ?? 'none'}'`,
     );
   }
 }

@@ -32,9 +32,9 @@
  * IDENTITY_JWKS_URL nor CF_ACCESS_TEAM_DOMAIN is set.
  */
 
-import { createRemoteJWKSet, jwtVerify } from "jose";
-import { AsyncLocalStorage } from "node:async_hooks";
-import { log } from "../utils.js";
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { log } from '../utils.js';
 
 // Discogs ships a single `log` object instead of cellartracker's named-export
 // severity helpers. Alias to keep the rest of this module byte-identical to
@@ -97,8 +97,8 @@ function resolveConfig(): ResolvedConfig | null {
     jwksUrl,
     issuer,
     audience,
-    emailClaim: process.env.IDENTITY_EMAIL_CLAIM || "email",
-    groupsClaim: process.env.IDENTITY_GROUPS_CLAIM || "groups",
+    emailClaim: process.env.IDENTITY_EMAIL_CLAIM || 'email',
+    groupsClaim: process.env.IDENTITY_GROUPS_CLAIM || 'groups',
   };
 }
 
@@ -107,7 +107,7 @@ function resolveConfig(): ResolvedConfig | null {
  * Defaults to `cf-access-jwt-assertion` for back-compat with Cloudflare.
  */
 export function getIdentityHeaderName(): string {
-  return (process.env.IDENTITY_HEADER || "cf-access-jwt-assertion").toLowerCase();
+  return (process.env.IDENTITY_HEADER || 'cf-access-jwt-assertion').toLowerCase();
 }
 
 let cachedJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
@@ -122,7 +122,7 @@ function getJWKS(jwksUrl: string): ReturnType<typeof createRemoteJWKSet> {
 
 function extractGroups(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((g): g is string => typeof g === "string");
+  return value.filter((g): g is string => typeof g === 'string');
 }
 
 /**
@@ -131,9 +131,7 @@ function extractGroups(value: unknown): string[] {
  * missing claims). Never throws — callers should treat null as "no trusted
  * gateway context for this request."
  */
-export async function verifyIdentityJwt(
-  jwt: string
-): Promise<Identity | null> {
+export async function verifyIdentityJwt(jwt: string): Promise<Identity | null> {
   const config = resolveConfig();
   if (!config) return null;
 
@@ -143,8 +141,8 @@ export async function verifyIdentityJwt(
       audience: config.audience,
     });
     const emailRaw = payload[config.emailClaim];
-    const email = typeof emailRaw === "string" ? emailRaw : undefined;
-    const sub = typeof payload.sub === "string" ? payload.sub : undefined;
+    const email = typeof emailRaw === 'string' ? emailRaw : undefined;
+    const sub = typeof payload.sub === 'string' ? payload.sub : undefined;
     if (!email || !sub) return null;
     const groups = extractGroups(payload[config.groupsClaim]);
     return { email, sub, groups };
