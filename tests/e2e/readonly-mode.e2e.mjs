@@ -30,7 +30,7 @@ async function connect(readOnly) {
   const transport = new StdioClientTransport({
     command: 'node',
     args: [SERVER],
-    env: { ...process.env, READONLY_MODE: String(readOnly), TOOL_NAME_PREFIX: '' },
+    env: { ...process.env, READONLY_MODE: String(readOnly) },
     stderr: 'pipe',
   });
   const client = new Client({ name: 'readonly-e2e', version: '1.0.0' }, { capabilities: {} });

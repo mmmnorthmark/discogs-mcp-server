@@ -31,7 +31,6 @@ try {
 
   registerTools(server, {
     readOnly: config.server.readOnly,
-    toolNamePrefix: config.server.toolNamePrefix,
   });
 
   if (transportType === 'stdio') {

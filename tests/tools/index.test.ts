@@ -16,19 +16,20 @@ function collectRegisteredToolNames(options?: Parameters<typeof registerTools>[1
 }
 
 describe('Tool registration', () => {
-  it('exposes public tools with the music prefix', () => {
-    const toolNames = collectRegisteredToolNames({ toolNamePrefix: 'music' });
-
-    expect(toolNames).toContain('music-search');
-    expect(toolNames).toContain('music-get_release');
-    expect(toolNames).not.toContain('search');
-    expect(toolNames.every((toolName) => toolName.startsWith('music-'))).toBe(true);
-  });
-
-  it('can expose unprefixed tools when the prefix is empty', () => {
-    const toolNames = collectRegisteredToolNames({ toolNamePrefix: '' });
+  it('registers tools under their unprefixed names', () => {
+    const toolNames = collectRegisteredToolNames();
 
     expect(toolNames).toContain('search');
-    expect(toolNames).not.toContain('music-search');
+    expect(toolNames).toContain('get_release');
+  });
+
+  it('omits mutating tools in read-only mode', () => {
+    const readWrite = collectRegisteredToolNames();
+    const readOnly = collectRegisteredToolNames({ readOnly: true });
+
+    expect(readOnly.length).toBeLessThan(readWrite.length);
+    expect(readOnly).toContain('search');
+    expect(readOnly).not.toContain('delete_marketplace_listing');
+    expect(readOnly).not.toContain('edit_user_collection_custom_field_value');
   });
 });

@@ -20,7 +20,6 @@ export const config = {
     port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3001,
     host: process.env.SERVER_HOST || '0.0.0.0',
     readOnly: process.env.READONLY_MODE === 'true',
-    toolNamePrefix: process.env.TOOL_NAME_PREFIX ?? 'music',
   },
 };
 
