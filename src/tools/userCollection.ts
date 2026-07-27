@@ -318,19 +318,25 @@ export const rateReleaseInUserCollectionTool: Tool<
   },
 };
 
-export function registerUserCollectionTools(server: FastMCP): void {
+export function registerUserCollectionTools(
+  server: FastMCP,
+  options?: { readOnly?: boolean },
+): void {
   server.addTool(protectTool(getUserCollectionFoldersTool));
-  server.addTool(protectTool(createUserCollectionFolderTool));
   server.addTool(protectTool(getUserCollectionFolderTool));
-  server.addTool(protectTool(editUserCollectionFolderTool));
-  server.addTool(protectTool(deleteUserCollectionFolderTool));
   server.addTool(protectTool(findReleaseInUserCollectionTool));
   server.addTool(protectTool(getUserCollectionItemsTool));
-  server.addTool(protectTool(addReleaseToUserCollectionFolderTool));
-  server.addTool(protectTool(rateReleaseInUserCollectionTool));
-  server.addTool(protectTool(moveReleaseInUserCollectionTool));
-  server.addTool(protectTool(deleteReleaseFromUserCollectionFolderTool));
   server.addTool(protectTool(getUserCollectionCustomFieldsTool));
-  server.addTool(protectTool(editUserCollectionCustomFieldValueTool));
   server.addTool(protectTool(getUserCollectionValueTool));
+
+  if (!options?.readOnly) {
+    server.addTool(protectTool(createUserCollectionFolderTool));
+    server.addTool(protectTool(editUserCollectionFolderTool));
+    server.addTool(protectTool(deleteUserCollectionFolderTool));
+    server.addTool(protectTool(addReleaseToUserCollectionFolderTool));
+    server.addTool(protectTool(rateReleaseInUserCollectionTool));
+    server.addTool(protectTool(moveReleaseInUserCollectionTool));
+    server.addTool(protectTool(deleteReleaseFromUserCollectionFolderTool));
+    server.addTool(protectTool(editUserCollectionCustomFieldValueTool));
+  }
 }

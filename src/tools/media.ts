@@ -24,6 +24,6 @@ export const fetchImageTool: Tool<FastMCPSessionAuth, typeof MediaParamsSchema> 
   },
 };
 
-export function registerMediaTools(server: FastMCP): void {
+export function registerMediaTools(server: FastMCP, _options?: { readOnly?: boolean }): void {
   server.addTool(protectTool(fetchImageTool));
 }

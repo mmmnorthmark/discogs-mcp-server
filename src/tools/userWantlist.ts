@@ -85,9 +85,12 @@ export const deleteItemInWantlistTool: Tool<
   },
 };
 
-export function registerUserWantlistTools(server: FastMCP): void {
+export function registerUserWantlistTools(server: FastMCP, options?: { readOnly?: boolean }): void {
   server.addTool(protectTool(getUserWantlistTool));
-  server.addTool(protectTool(addToWantlistTool));
-  server.addTool(protectTool(editItemInWantlistTool));
-  server.addTool(protectTool(deleteItemInWantlistTool));
+
+  if (!options?.readOnly) {
+    server.addTool(protectTool(addToWantlistTool));
+    server.addTool(protectTool(editItemInWantlistTool));
+    server.addTool(protectTool(deleteItemInWantlistTool));
+  }
 }
