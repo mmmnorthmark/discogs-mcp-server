@@ -94,6 +94,10 @@ export function getRoleFromGroups(groups: string[]): Role | null {
  * The InsufficientScopeError message includes the required role and the
  * user's current role for actionable debugging.
  */
+export function isRbacEnabled(): boolean {
+  return isRbacConfigured(loadConfig());
+}
+
 export function requireRole(required: Role, identity: Identity | null, toolName?: string): void {
   const config = loadConfig();
   if (!isRbacConfigured(config)) return;

@@ -1,5 +1,5 @@
 import type { FastMCP, Tool } from 'fastmcp';
-import { protectTool } from '../auth/toolAuthz.js';
+import { type ToolRegistrationOptions, register } from './register.js';
 import { formatDiscogsError } from '../errors.js';
 import { UserService } from '../services/user/index.js';
 import { FastMCPSessionAuth } from '../types/common.js';
@@ -85,12 +85,18 @@ export const deleteItemInWantlistTool: Tool<
   },
 };
 
-export function registerUserWantlistTools(server: FastMCP, options?: { readOnly?: boolean }): void {
-  server.addTool(protectTool(getUserWantlistTool));
+export function registerUserWantlistTools(
+  server: FastMCP,
+  options?: ToolRegistrationOptions,
+): void {
+  const tools = [
+    getUserWantlistTool,
+    addToWantlistTool,
+    editItemInWantlistTool,
+    deleteItemInWantlistTool,
+  ];
 
-  if (!options?.readOnly) {
-    server.addTool(protectTool(addToWantlistTool));
-    server.addTool(protectTool(editItemInWantlistTool));
-    server.addTool(protectTool(deleteItemInWantlistTool));
+  for (const tool of tools) {
+    register(server, tool, options);
   }
 }

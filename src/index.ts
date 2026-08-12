@@ -2,6 +2,7 @@
 import { FastMCP } from 'fastmcp';
 import { isOAuthConfigured } from './auth/googleOAuthProvider.js';
 import { buildFastmcpOAuthConfig, registerOAuthRoutes } from './auth/oauthRoutes.js';
+import { isRbacEnabled } from './auth/roleAuthz.js';
 import { identityAuthenticate } from './auth/sessionAuth.js';
 import { config, validateConfig } from './config.js';
 import { registerTools } from './tools/index.js';
@@ -75,6 +76,14 @@ try {
 
   if (config.server.readOnly) {
     log.info('Read-only mode enabled: mutating tools are disabled');
+  }
+  if (isRbacEnabled()) {
+    log.info('Per-tool RBAC enabled: tool access gated by identity group membership');
+  } else {
+    log.info(
+      'Per-tool RBAC NOT enforced - no IDENTITY_ROLE_*_GROUPS configured; ' +
+        'access is gated by ALLOWED_GOOGLE_EMAILS alone',
+    );
   }
   log.info(`${config.server.name} started with transport type: ${transportType}`);
 } catch (error: unknown) {

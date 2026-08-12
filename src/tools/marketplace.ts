@@ -1,5 +1,5 @@
 import { FastMCP, Tool } from 'fastmcp';
-import { protectTool } from '../auth/toolAuthz.js';
+import { type ToolRegistrationOptions, register } from './register.js';
 import { formatDiscogsError } from '../errors.js';
 import { MarketplaceService } from '../services/marketplace.js';
 import { UserInventoryService } from '../services/user/inventory.js';
@@ -238,19 +238,22 @@ export const updateMarketplaceListingTool: Tool<
   },
 };
 
-export function registerMarketplaceTools(server: FastMCP, options?: { readOnly?: boolean }): void {
-  server.addTool(protectTool(getUserInventoryTool));
-  server.addTool(protectTool(getMarketplaceListingTool));
-  server.addTool(protectTool(getMarketplaceOrderTool));
-  server.addTool(protectTool(getMarketplaceOrdersTool));
-  server.addTool(protectTool(getMarketplaceOrderMessagesTool));
-  server.addTool(protectTool(getMarketplaceReleaseStatsTool));
+export function registerMarketplaceTools(server: FastMCP, options?: ToolRegistrationOptions): void {
+  const tools = [
+    getUserInventoryTool,
+    getMarketplaceListingTool,
+    getMarketplaceOrderTool,
+    getMarketplaceOrdersTool,
+    getMarketplaceOrderMessagesTool,
+    getMarketplaceReleaseStatsTool,
+    createMarketplaceListingTool,
+    updateMarketplaceListingTool,
+    deleteMarketplaceListingTool,
+    editMarketplaceOrderTool,
+    createMarketplaceOrderMessageTool,
+  ];
 
-  if (!options?.readOnly) {
-    server.addTool(protectTool(createMarketplaceListingTool));
-    server.addTool(protectTool(updateMarketplaceListingTool));
-    server.addTool(protectTool(deleteMarketplaceListingTool));
-    server.addTool(protectTool(editMarketplaceOrderTool));
-    server.addTool(protectTool(createMarketplaceOrderMessageTool));
+  for (const tool of tools) {
+    register(server, tool, options);
   }
 }

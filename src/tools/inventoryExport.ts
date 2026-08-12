@@ -1,6 +1,6 @@
 import type { FastMCP, Tool, ToolParameters } from 'fastmcp';
 import { z } from 'zod';
-import { protectTool } from '../auth/toolAuthz.js';
+import { type ToolRegistrationOptions, register } from './register.js';
 import { formatDiscogsError } from '../errors.js';
 import { InventoryService } from '../services/inventory.js';
 import { FastMCPSessionAuth } from '../types/common.js';
@@ -85,13 +85,16 @@ export const inventoryExportTool: Tool<FastMCPSessionAuth, ToolParameters> = {
 
 export function registerInventoryExportTool(
   server: FastMCP,
-  options?: { readOnly?: boolean },
+  options?: ToolRegistrationOptions,
 ): void {
-  server.addTool(protectTool(getInventoryExportsTool));
-  server.addTool(protectTool(getInventoryExportTool));
-  server.addTool(protectTool(downloadInventoryExportTool));
+  const tools = [
+    getInventoryExportsTool,
+    getInventoryExportTool,
+    downloadInventoryExportTool,
+    inventoryExportTool,
+  ];
 
-  if (!options?.readOnly) {
-    server.addTool(protectTool(inventoryExportTool));
+  for (const tool of tools) {
+    register(server, tool, options);
   }
 }

@@ -1,5 +1,5 @@
 import type { FastMCP, Tool } from 'fastmcp';
-import { protectTool } from '../auth/toolAuthz.js';
+import { type ToolRegistrationOptions, register } from './register.js';
 import { formatDiscogsError } from '../errors.js';
 import { UserService } from '../services/user/index.js';
 import { FastMCPSessionAuth, UsernameInputSchema } from '../types/common.js';
@@ -320,23 +320,26 @@ export const rateReleaseInUserCollectionTool: Tool<
 
 export function registerUserCollectionTools(
   server: FastMCP,
-  options?: { readOnly?: boolean },
+  options?: ToolRegistrationOptions,
 ): void {
-  server.addTool(protectTool(getUserCollectionFoldersTool));
-  server.addTool(protectTool(getUserCollectionFolderTool));
-  server.addTool(protectTool(findReleaseInUserCollectionTool));
-  server.addTool(protectTool(getUserCollectionItemsTool));
-  server.addTool(protectTool(getUserCollectionCustomFieldsTool));
-  server.addTool(protectTool(getUserCollectionValueTool));
+  const tools = [
+    getUserCollectionFoldersTool,
+    getUserCollectionFolderTool,
+    findReleaseInUserCollectionTool,
+    getUserCollectionItemsTool,
+    getUserCollectionCustomFieldsTool,
+    getUserCollectionValueTool,
+    createUserCollectionFolderTool,
+    editUserCollectionFolderTool,
+    deleteUserCollectionFolderTool,
+    addReleaseToUserCollectionFolderTool,
+    rateReleaseInUserCollectionTool,
+    moveReleaseInUserCollectionTool,
+    deleteReleaseFromUserCollectionFolderTool,
+    editUserCollectionCustomFieldValueTool,
+  ];
 
-  if (!options?.readOnly) {
-    server.addTool(protectTool(createUserCollectionFolderTool));
-    server.addTool(protectTool(editUserCollectionFolderTool));
-    server.addTool(protectTool(deleteUserCollectionFolderTool));
-    server.addTool(protectTool(addReleaseToUserCollectionFolderTool));
-    server.addTool(protectTool(rateReleaseInUserCollectionTool));
-    server.addTool(protectTool(moveReleaseInUserCollectionTool));
-    server.addTool(protectTool(deleteReleaseFromUserCollectionFolderTool));
-    server.addTool(protectTool(editUserCollectionCustomFieldValueTool));
+  for (const tool of tools) {
+    register(server, tool, options);
   }
 }

@@ -141,7 +141,7 @@ export type CurrencyCode = z.infer<typeof CurrencyCodeSchema>;
  * populates this session with an `identity` field. Tools can read it via
  * `context.session?.identity`, but the preferred path is automatic
  * role-tier enforcement at registration time via `protectTool` from
- * src/auth/toolAuthz.ts — see src/tools/toolRoles.ts.
+ * src/auth/toolAuthz.ts — see src/tools/toolRisk.ts.
  */
 export type FastMCPSessionAuth = Record<string, unknown> | undefined;
 

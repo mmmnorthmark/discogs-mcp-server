@@ -39,7 +39,13 @@ async function connect(readOnly) {
 }
 
 const text = (r) => r?.content?.map((c) => c.text ?? '').join('') ?? '';
-const json = (r) => { try { return JSON.parse(text(r)); } catch { return null; } };
+const json = (r) => {
+  try {
+    return JSON.parse(text(r));
+  } catch {
+    return null;
+  }
+};
 
 let failures = 0;
 const check = (label, ok, detail = '') => {
@@ -58,59 +64,102 @@ check('mutating tool is registered', tools1.includes(MUTATING_TOOL));
 const ident = json(await client.callTool({ name: 'get_user_identity', arguments: {} }));
 const username = ident?.username;
 check('authenticated to Discogs', !!username, username ? `user ${username}` : 'no username');
-if (!username) { console.log('Cannot continue without auth.'); process.exit(1); }
+if (!username) {
+  console.log('Cannot continue without auth.');
+  process.exit(1);
+}
 
 // Discover the custom fields available on the collection.
-const fields = json(await client.callTool({ name: 'get_user_collection_custom_fields', arguments: { username } }));
+const fields = json(
+  await client.callTool({ name: 'get_user_collection_custom_fields', arguments: { username } }),
+);
 const textField = (fields?.fields ?? []).find((f) => f.type === 'textarea' || f.type === 'text');
-check('found an editable text custom field', !!textField, textField ? `"${textField.name}" (id ${textField.id})` : 'none');
-if (!textField) { console.log('Cannot continue without a text field.'); process.exit(1); }
+check(
+  'found an editable text custom field',
+  !!textField,
+  textField ? `"${textField.name}" (id ${textField.id})` : 'none',
+);
+if (!textField) {
+  console.log('Cannot continue without a text field.');
+  process.exit(1);
+}
 
 // Take the first item in folder 1 (All) as the subject.
-const items = json(await client.callTool({
-  name: 'get_user_collection_items',
-  arguments: { username, folder_id: 1, per_page: 1, page: 1 },
-}));
+const items = json(
+  await client.callTool({
+    name: 'get_user_collection_items',
+    arguments: { username, folder_id: 1, per_page: 1, page: 1 },
+  }),
+);
 const item = items?.releases?.[0];
-check('found a collection item to edit', !!item,
-  item ? `"${item.basic_information?.title}" instance ${item.instance_id}` : 'none');
-if (!item) { console.log('Cannot continue without an item.'); process.exit(1); }
+check(
+  'found a collection item to edit',
+  !!item,
+  item ? `"${item.basic_information?.title}" instance ${item.instance_id}` : 'none',
+);
+if (!item) {
+  console.log('Cannot continue without an item.');
+  process.exit(1);
+}
 
 const originalValue = (item.notes ?? []).find((n) => n.field_id === textField.id)?.value ?? '';
 console.log(`Original "${textField.name}" value: ${JSON.stringify(originalValue)}`);
 
 const testValue = `${originalValue}${originalValue ? ' ' : ''}[e2e-test]`;
 const editArgs = {
-  username, folder_id: 1, release_id: item.id, instance_id: item.instance_id,
-  field_id: textField.id, value: testValue,
+  username,
+  folder_id: 1,
+  release_id: item.id,
+  instance_id: item.instance_id,
+  field_id: textField.id,
+  value: testValue,
 };
 
 let wroteSuccessfully = false;
 try {
   const res = await client.callTool({ name: MUTATING_TOOL, arguments: editArgs });
   wroteSuccessfully = !res.isError;
-  check('edit call succeeded with writes enabled', !res.isError, res.isError ? text(res).slice(0, 200) : '');
+  check(
+    'edit call succeeded with writes enabled',
+    !res.isError,
+    res.isError ? text(res).slice(0, 200) : '',
+  );
 } catch (e) {
   check('edit call succeeded with writes enabled', false, e.message.slice(0, 200));
 }
 
 // Verify the value actually changed on Discogs.
 if (wroteSuccessfully) {
-  const after = json(await client.callTool({
-    name: 'get_user_collection_items', arguments: { username, folder_id: 1, per_page: 1, page: 1 },
-  }));
-  const newValue = (after?.releases?.[0]?.notes ?? []).find((n) => n.field_id === textField.id)?.value ?? '';
+  const after = json(
+    await client.callTool({
+      name: 'get_user_collection_items',
+      arguments: { username, folder_id: 1, per_page: 1, page: 1 },
+    }),
+  );
+  const newValue =
+    (after?.releases?.[0]?.notes ?? []).find((n) => n.field_id === textField.id)?.value ?? '';
   check('value changed on Discogs', newValue === testValue, `now ${JSON.stringify(newValue)}`);
 }
 
 // ---------- RESTORE ----------
 if (wroteSuccessfully) {
-  const res = await client.callTool({ name: MUTATING_TOOL, arguments: { ...editArgs, value: originalValue } });
-  const back = json(await client.callTool({
-    name: 'get_user_collection_items', arguments: { username, folder_id: 1, per_page: 1, page: 1 },
-  }));
-  const restored = (back?.releases?.[0]?.notes ?? []).find((n) => n.field_id === textField.id)?.value ?? '';
-  check('ORIGINAL VALUE RESTORED', restored === originalValue && !res.isError, `now ${JSON.stringify(restored)}`);
+  const res = await client.callTool({
+    name: MUTATING_TOOL,
+    arguments: { ...editArgs, value: originalValue },
+  });
+  const back = json(
+    await client.callTool({
+      name: 'get_user_collection_items',
+      arguments: { username, folder_id: 1, per_page: 1, page: 1 },
+    }),
+  );
+  const restored =
+    (back?.releases?.[0]?.notes ?? []).find((n) => n.field_id === textField.id)?.value ?? '';
+  check(
+    'ORIGINAL VALUE RESTORED',
+    restored === originalValue && !res.isError,
+    `now ${JSON.stringify(restored)}`,
+  );
 }
 await client.close();
 
@@ -120,22 +169,35 @@ client = await connect(true);
 const tools2 = (await client.listTools()).tools.map((t) => t.name);
 console.log(`Tools registered: ${tools2.length} (was ${tools1.length})`);
 check('mutating tool is NOT registered', !tools2.includes(MUTATING_TOOL));
-check('read tools still available', tools2.includes('get_user_collection_items') && tools2.includes('search'));
+check(
+  'read tools still available',
+  tools2.includes('get_user_collection_items') && tools2.includes('search'),
+);
 check('tool count dropped', tools2.length < tools1.length, `${tools1.length} -> ${tools2.length}`);
 
 let blocked = false;
 try {
   const res = await client.callTool({ name: MUTATING_TOOL, arguments: editArgs });
   blocked = !!res.isError;
-} catch { blocked = true; }
+} catch {
+  blocked = true;
+}
 check('edit call REJECTED in read-only mode', blocked);
 
 // Confirm the collection value is still the original after the blocked attempt.
-const final = json(await client.callTool({
-  name: 'get_user_collection_items', arguments: { username, folder_id: 1, per_page: 1, page: 1 },
-}));
-const finalValue = (final?.releases?.[0]?.notes ?? []).find((n) => n.field_id === textField.id)?.value ?? '';
-check('COLLECTION UNCHANGED at end of test', finalValue === originalValue, `${JSON.stringify(finalValue)}`);
+const final = json(
+  await client.callTool({
+    name: 'get_user_collection_items',
+    arguments: { username, folder_id: 1, per_page: 1, page: 1 },
+  }),
+);
+const finalValue =
+  (final?.releases?.[0]?.notes ?? []).find((n) => n.field_id === textField.id)?.value ?? '';
+check(
+  'COLLECTION UNCHANGED at end of test',
+  finalValue === originalValue,
+  `${JSON.stringify(finalValue)}`,
+);
 await client.close();
 
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'}`);

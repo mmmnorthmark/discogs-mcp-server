@@ -1,6 +1,6 @@
 import type { FastMCP, Tool, ToolParameters } from 'fastmcp';
 import { z } from 'zod';
-import { protectTool } from '../auth/toolAuthz.js';
+import { type ToolRegistrationOptions, register } from './register.js';
 import { formatDiscogsError } from '../errors.js';
 import { OAuthService } from '../services/oauth.js';
 import { UserContributionsService, UserSubmissionsService } from '../services/user/contribution.js';
@@ -105,13 +105,19 @@ export const editUserProfileTool: Tool<FastMCPSessionAuth, typeof UserProfileEdi
   },
 };
 
-export function registerUserIdentityTools(server: FastMCP, options?: { readOnly?: boolean }): void {
-  server.addTool(protectTool(getUserIdentityTool));
-  server.addTool(protectTool(getUserProfileTool));
-  server.addTool(protectTool(getUserSubmissionsTool));
-  server.addTool(protectTool(getUserContributionsTool));
+export function registerUserIdentityTools(
+  server: FastMCP,
+  options?: ToolRegistrationOptions,
+): void {
+  const tools = [
+    getUserIdentityTool,
+    getUserProfileTool,
+    getUserSubmissionsTool,
+    getUserContributionsTool,
+    editUserProfileTool,
+  ];
 
-  if (!options?.readOnly) {
-    server.addTool(protectTool(editUserProfileTool));
+  for (const tool of tools) {
+    register(server, tool, options);
   }
 }

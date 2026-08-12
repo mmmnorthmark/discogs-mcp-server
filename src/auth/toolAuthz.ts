@@ -2,7 +2,7 @@
  * Per-tool role authorization wrapper for FastMCP tools.
  *
  * Each tool is tagged with a required role (reader/writer/admin) in the
- * central TOOL_ROLES dispatch table (src/tools/toolRoles.ts). At registration
+ * central TOOL_RISK table (src/tools/toolRisk.ts). At registration
  * time we wrap every tool's `execute` so that:
  *
  *   1. requireRole(role, identity, toolName) runs FIRST. When RBAC is
@@ -21,7 +21,7 @@
 
 import type { Tool, ToolParameters } from 'fastmcp';
 import type { FastMCPSessionAuth } from '../types/common.js';
-import { DEFAULT_TOOL_ROLE, TOOL_ROLES } from '../tools/toolRoles.js';
+import { getToolRisk } from '../tools/toolRisk.js';
 import { type Identity, identityContext } from './identityJwtVerifier.js';
 import { type Role, requireRole } from './roleAuthz.js';
 
@@ -71,9 +71,13 @@ export function withRequiredRole<P extends ToolParameters>(
 }
 
 /**
- * Convenience wrapper that looks up the tool's required role in the
- * central TOOL_ROLES dispatch table. Unknown tools default to `writer`
- * (DEFAULT_TOOL_ROLE) — safer than `reader` for an unrecognized mutation.
+ * Registration-time wrapper: applies the tool's role gate and attaches its
+ * MCP annotations, both read from the central TOOL_RISK table. Tools absent
+ * from that table get UNKNOWN_TOOL_RISK (admin + destructive), so failing to
+ * classify a new tool denies access rather than granting it.
+ *
+ * Annotations already present on a tool definition win, so a tool can
+ * override a hint locally without editing the table.
  *
  * Use this at registration time:
  *
@@ -82,6 +86,16 @@ export function withRequiredRole<P extends ToolParameters>(
 export function protectTool<P extends ToolParameters>(
   tool: Tool<FastMCPSessionAuth, P>,
 ): Tool<FastMCPSessionAuth, P> {
-  const required = TOOL_ROLES[tool.name] ?? DEFAULT_TOOL_ROLE;
-  return withRequiredRole(tool, required);
+  const risk = getToolRisk(tool.name);
+  const guarded = withRequiredRole(tool, risk.role);
+  return {
+    ...guarded,
+    annotations: {
+      readOnlyHint: risk.readOnly,
+      destructiveHint: risk.destructive,
+      idempotentHint: risk.idempotent,
+      openWorldHint: risk.openWorld,
+      ...guarded.annotations,
+    },
+  };
 }

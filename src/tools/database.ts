@@ -1,5 +1,5 @@
 import { FastMCP, Tool } from 'fastmcp';
-import { protectTool } from '../auth/toolAuthz.js';
+import { type ToolRegistrationOptions, register } from './register.js';
 import { formatDiscogsError } from '../errors.js';
 import { ArtistService } from '../services/artist.js';
 import { DatabaseService } from '../services/database.js';
@@ -251,20 +251,23 @@ export const searchTool: Tool<FastMCPSessionAuth, typeof SearchParamsSchema> = {
   },
 };
 
-export function registerDatabaseTools(server: FastMCP, options?: { readOnly?: boolean }): void {
-  server.addTool(protectTool(getReleaseTool));
-  server.addTool(protectTool(getReleaseRatingTool));
-  server.addTool(protectTool(getReleaseCommunityRatingTool));
-  server.addTool(protectTool(getMasterReleaseTool));
-  server.addTool(protectTool(getMasterReleaseVersionsTool));
-  server.addTool(protectTool(getArtistTool));
-  server.addTool(protectTool(getArtistReleasesTool));
-  server.addTool(protectTool(getLabelTool));
-  server.addTool(protectTool(getLabelReleasesTool));
-  server.addTool(protectTool(searchTool));
+export function registerDatabaseTools(server: FastMCP, options?: ToolRegistrationOptions): void {
+  const tools = [
+    getReleaseTool,
+    getReleaseRatingTool,
+    getReleaseCommunityRatingTool,
+    getMasterReleaseTool,
+    getMasterReleaseVersionsTool,
+    getArtistTool,
+    getArtistReleasesTool,
+    getLabelTool,
+    getLabelReleasesTool,
+    searchTool,
+    editReleaseRatingTool,
+    deleteReleaseRatingTool,
+  ];
 
-  if (!options?.readOnly) {
-    server.addTool(protectTool(editReleaseRatingTool));
-    server.addTool(protectTool(deleteReleaseRatingTool));
+  for (const tool of tools) {
+    register(server, tool, options);
   }
 }

@@ -41,4 +41,14 @@ export default [
       'no-undef': 'off',
     },
   },
+  {
+    // Standalone Node CLI scripts, run outside the test runner: they use
+    // process/console directly and report results by printing.
+    files: ['tests/e2e/**/*.mjs'],
+    rules: {
+      'no-console': 'off',
+      'no-undef': 'off',
+      'no-useless-assignment': 'off',
+    },
+  },
 ];
