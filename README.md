@@ -139,31 +139,78 @@ Recommended when serving real traffic:
 - `SERVER_HOST=0.0.0.0` (already the default).
 - `PORT` — set automatically by Cloud Run; the server reads it.
 
-Identity-gateway passthrough (only if traffic flows through Cloudflare
-Access or another trusted gateway that injects a signed JWT header):
+### Identity-gateway passthrough
 
-- `CF_ACCESS_TEAM_DOMAIN` + `CF_ACCESS_AUD` — Cloudflare Access shortcut.
-  The verifier auto-derives the issuer/JWKS URL.
+Only relevant if traffic reaches the server through a gateway that
+injects a **signed** identity JWT. Set `IDENTITY_PROXY` to a preset and
+the header plus verification defaults come with it; any explicit
+`IDENTITY_*` var always overrides the preset.
 
-Or use the provider-agnostic equivalents (Cognito, Auth0, Tailscale,
-etc.):
+| `IDENTITY_PROXY` | Header | Notes |
+|---|---|---|
+| `cloudflare` | `Cf-Access-Jwt-Assertion` | JWKS/issuer derived from `CF_ACCESS_TEAM_DOMAIN`; audience from `CF_ACCESS_AUD`. |
+| `gcp-iap` | `X-Goog-Iap-Jwt-Assertion` | ES256 via gstatic; requires `IDENTITY_AUDIENCE` (`/projects/NUM/...`); 30s clock skew. |
+| `aws-alb` | `X-Amzn-Oidc-Data` | Needs `IDENTITY_AWS_REGION`; set `IDENTITY_AWS_ALB_ARN` to verify the signer (AWS requires this). |
+| `oauth2-proxy` | `X-Forwarded-Email` | **Unsigned.** Ignored unless `TRUST_UNSIGNED_PROXY_HEADERS=true`. Private networks only. |
+| unset / `custom` | `Cf-Access-Jwt-Assertion` | Generic mode: supply `IDENTITY_JWKS_URL`, `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE` yourself. |
 
-- `IDENTITY_JWKS_URL`, `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`
-- `IDENTITY_HEADER` (default `cf-access-jwt-assertion`)
-- `IDENTITY_EMAIL_CLAIM` (default `email`)
-- `IDENTITY_GROUPS_CLAIM` (default `groups`)
+Shared knobs: `IDENTITY_HEADER`, `IDENTITY_EMAIL_CLAIM` (default
+`email`), `IDENTITY_GROUPS_CLAIM` (default `groups`).
 
-Role-based authorization (only when groups are configured in the gateway):
+> **The Cloudflare MCP portal does not forward `Cf-Access-Jwt-Assertion`
+> upstream** (verified 2026-08-28). Behind a portal, none of the above
+> fires — callers arrive as OAuth Bearer identities with no groups. Use
+> the email tiers below, not the group lists.
+
+### Per-tool role authorization (RBAC)
+
+Two independent sources, either or both:
+
+**By email** — works everywhere, including behind the MCP portal, since
+it needs only the verified email:
+
+- `IDENTITY_ROLE_ADMIN_EMAILS` — comma-separated emails mapping to `admin`.
+- `IDENTITY_ROLE_WRITER_EMAILS` — emails mapping to `writer`.
+- `IDENTITY_ROLE_READER_EMAILS` — emails mapping to `reader`.
+
+**By group** — requires a gateway that actually forwards group claims:
 
 - `IDENTITY_ROLE_ADMIN_GROUPS` — comma-separated group names mapping to `admin`.
 - `IDENTITY_ROLE_WRITER_GROUPS` — group names mapping to `writer`.
 - `IDENTITY_ROLE_READER_GROUPS` — group names mapping to `reader`.
 
-When none of the `IDENTITY_ROLE_*_GROUPS` vars are set, per-tool role
-enforcement is a no-op — the deployment behaves like a single-tenant
-server. The dispatch table in `src/tools/toolRoles.ts` classifies every
-tool as `reader` (read-only lookups) or `writer` (mutations); unknown
-tools default to `writer`.
+Matching is case-insensitive and whitespace-trimmed for both sources.
+When both match, the **highest** tier wins (`admin` > `writer` >
+`reader`), and a higher tier satisfies any lower requirement.
+
+When **none** of the six lists is set, enforcement is a no-op and the
+deployment behaves like a single-tenant server. Once **any** list is
+set, resolution is **fail-closed**: an identity matching no list gets no
+tools. Configuring only the `_GROUPS` lists behind the MCP portal
+therefore locks everyone out — that is the trap the email tiers exist
+to avoid.
+
+Every tool's required role, along with its MCP annotations, comes from
+the single `TOOL_RISK` table in `src/tools/toolRisk.ts`. A tool missing
+from that table falls back to `UNKNOWN_TOOL_RISK` (admin + destructive),
+so forgetting to classify a new tool denies access rather than granting
+it.
+
+#### Generating the roster
+
+The Cloudflare Access `terraform.tfvars` is the authored source of who
+gets which tier. Rather than hand-maintaining the env vars, generate
+them:
+
+```bash
+npx tsx ~/Dropbox/Code/books-mcp-server/scripts/gen-role-env.ts \
+  ~/code-local/cellartracker-mcp-gcp-deployment/infra/cloudflare-access/terraform.tfvars \
+  Music
+```
+
+That prints the three `IDENTITY_ROLE_*_EMAILS` lines for this service's
+`service_access.Music` entry, ready to paste into a
+`gcloud run services update --update-env-vars` call.
 
 ## Inspection
 
