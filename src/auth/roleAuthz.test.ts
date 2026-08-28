@@ -135,7 +135,11 @@ describe('requireRole — RBAC enabled', () => {
 
   it('throws when user matches no configured group at all', async () => {
     const { requireRole } = await import('./roleAuthz.js');
-    expect(() => requireRole('reader', identityFor(['Random Group']))).toThrow(/you are 'none'/);
+    // Fail-closed. The message names the identity and the env vars to edit,
+    // rather than the older opaque "you are 'none'".
+    expect(() => requireRole('reader', identityFor(['Random Group']))).toThrow(
+      /no role is configured for u@example\.com/,
+    );
   });
 
   it("allows when user's role equals the required role (reader = reader)", async () => {
