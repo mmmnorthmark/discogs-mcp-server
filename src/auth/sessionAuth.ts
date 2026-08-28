@@ -105,10 +105,13 @@ export async function identityAuthenticate(
   try {
     const verified = await verifyGoogleAccessToken(token);
     log.debug(`[Auth] Authenticated ${verified.email} via Google access token`);
-    // Google tokens carry no group claims — group-driven RBAC is a gateway
-    // feature. Bearer-authenticated users therefore resolve to no groups,
-    // which means requireRole denies them whenever IDENTITY_ROLE_*_GROUPS is
-    // configured. Same tradeoff as cellartracker-mcp.
+    // Google tokens carry no group claims, so Bearer-authenticated users
+    // resolve to no groups. This is the normal path behind the Cloudflare
+    // MCP portal, which does not forward its Cf-Access-Jwt-Assertion
+    // upstream. Per-tool RBAC for these callers is therefore driven by the
+    // email tiers (IDENTITY_ROLE_*_EMAILS) rather than groups — see
+    // roleAuthz.ts. Configuring only the _GROUPS lists would deny every
+    // portal user.
     return { identity: { email: verified.email, sub: verified.sub, groups: [] } };
   } catch (err) {
     if (err instanceof OAuthFlowError) {

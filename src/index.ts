@@ -78,10 +78,10 @@ try {
     log.info('Read-only mode enabled: mutating tools are disabled');
   }
   if (isRbacEnabled()) {
-    log.info('Per-tool RBAC enabled: tool access gated by identity group membership');
+    log.info('Per-tool RBAC enabled: tool access gated by identity email/group tiers');
   } else {
     log.info(
-      'Per-tool RBAC NOT enforced - no IDENTITY_ROLE_*_GROUPS configured; ' +
+      'Per-tool RBAC NOT enforced - no IDENTITY_ROLE_*_{GROUPS,EMAILS} configured; ' +
         'access is gated by ALLOWED_GOOGLE_EMAILS alone',
     );
   }
